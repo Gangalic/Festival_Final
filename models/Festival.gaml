@@ -29,6 +29,13 @@ global {
 	int show_duration_min <- 300;
 	int show_duration_max <- 500;
 	
+	// lists of talked to
+	list dancer_talked_to <- list_with(5,0);
+	list drunkard_talked_to <- list_with(5,0);
+	list hippie_talked_to <- list_with(5,0);
+	list druggie_talked_to <- list_with(5,0);
+	list newbie_talked_to <- list_with(5,0);
+	
 	float dancer_avg_hap;
 	float drunkard_avg_hap;
 	float hippie_avg_hap;
@@ -170,7 +177,7 @@ species Guest skills: [fipa, moving] {
 			self.arrived <- true;
 			if (species(self.target) = Stage){
 				// if it got on the stage the dancing appetite decreases
-				self.dance <- self.dance - 2*rnd(attr_change_min, attr_change_max);
+				self.dance <- self.dance + 2*rnd(attr_change_min, attr_change_max);
 			} else if (species(self.target) = Bar){
 				// if it got at the bar the alchool lvl increases
 				self.alchool <- self.alchool + 2*rnd(attr_change_min, attr_change_max);
@@ -186,11 +193,32 @@ species Guest skills: [fipa, moving] {
 								 and !empty(target.crowd) 
 								 and int(time) mod rnd(2,4) = 0 
 								 and talking_to = nil {
-		Guest guest <- (target.crowd-self) first_with (each.talking_to = nil);
+		Guest guest <- target.crowd first_with (each.talking_to = nil and each != self);
 		if(guest != nil) {
 			self.talking_to <- guest;
-			guest.talking_to <- self;	
-			// write name + " to: " + talking_to.name + "\n";
+			guest.talking_to <- self;
+			// write "\n\n\n"+name + " to: " + talking_to.name + "\n\n\n";
+		}
+	}
+	
+	// action to update the list containing whom we've already talked to
+	action update_talked_to (list<int> list_talked_to) {
+		switch(species(self.talking_to)) {
+			match Dancer {
+				list_talked_to[0] <- list_talked_to[0] + 1;
+			} 
+			match Drunkard {
+				list_talked_to[1] <- list_talked_to[1] + 1;
+			}
+			match Hippie {
+				list_talked_to[2] <- list_talked_to[2] + 1;
+			}
+			match Druggie {
+				list_talked_to[3] <- list_talked_to[3] + 1;
+			}
+			match Newbie {
+				list_talked_to[4] <- list_talked_to[4] + 1;
+			}
 		}
 	}
 	
@@ -223,7 +251,8 @@ species Dancer parent: Guest {
 			at: self.location+{0,0,self.guest_size*2.2};
 	}
 	
-	reflex talking when: talking_to != nil and target != nil{
+	reflex talking when: talking_to != nil and target != nil and target = talking_to.target {
+		do update_talked_to(dancer_talked_to);
 		switch(species(talking_to)) {
 			match Dancer {
 				do increase_happiness;
@@ -252,7 +281,8 @@ species Drunkard parent: Guest {
 			at: self.location+{0,0,self.guest_size*2.2};
 	}
 	
-	reflex talking when: talking_to != nil and target != nil {
+	reflex talking when: talking_to != nil and target != nil and target = talking_to.target {
+		do update_talked_to(drunkard_talked_to);
 		switch(species(talking_to)) {
 			match Dancer {
 				do increase_happiness;
@@ -261,7 +291,7 @@ species Drunkard parent: Guest {
 			match Drunkard {
 				do decrease_happiness;
 				self.alchool <- self.alchool - rnd(attr_change_min, attr_change_max); 
-				write "xxxxxxxxxxxx Fight on " + target.name + " with " + talking_to.name + " xxxxxxxxxxx";
+				write "xxxxxxxxxxxx Fight on " + target.name + ": " + name + " with " + talking_to.name + " xxxxxxxxxxx";
 			}
 			match Druggie {
 				do increase_happiness;
@@ -286,7 +316,8 @@ species Hippie parent: Guest {
 			at: self.location+{0,0,self.guest_size*2.2};
 	}
 	
-	reflex talking when: talking_to != nil and target != nil{
+	reflex talking when: talking_to != nil and target != nil and target = talking_to.target {
+		do update_talked_to(hippie_talked_to);
 		switch(species(talking_to)) {
 			match Dancer {
 				do increase_happiness;
@@ -316,7 +347,8 @@ species Druggie parent: Guest {
 			at: self.location+{0,0,self.guest_size*2.2};
 	}
 	
-	reflex talking when: talking_to != nil and target != nil {
+	reflex talking when: talking_to != nil and target != nil and target = talking_to.target {
+		do update_talked_to(druggie_talked_to);
 		switch(species(talking_to)) {
 			match Dancer {
 				do dance_together;
@@ -349,7 +381,8 @@ species Newbie parent: Guest {
 			at: self.location+{0,0,self.guest_size*2.2};
 	}
 	
-	reflex talking when: talking_to != nil and target != nil{
+	reflex talking when: talking_to != nil and target != nil and target = talking_to.target {
+		do update_talked_to(newbie_talked_to);
 		switch(species(talking_to)) {
 			match Newbie {
 				self.happiness <- self.happiness - rnd(attr_change_min, attr_change_max);
@@ -461,13 +494,40 @@ species Bar parent: Building {
 experiment start_festival  type: gui {
 	output
 	{
-		display chart_display type: opengl {
+		display chart_display {
 			chart "Happinness by guest type" type:series{
 				data "Dancer" value:  dancer_avg_hap color: #orange;
 				data "Drunkard" value:  drunkard_avg_hap color: #violet;
 				data "Hippie" value:  hippie_avg_hap color: #green;
 				data "Druggie" value:  druggie_avg_hap color: #blue;
 				data "Newbie" value:  newbie_avg_hap color: #yellow;
+			}
+		}
+		
+		display pie_display {
+			chart "dancer" type: pie position: {0, 0.1, 0.1} size: {0.3,0.3} {
+				datalist ["Dancer", "Drunkard", "Hippie", "Druggie", "Newbie"] value: dancer_talked_to 
+					color: [#orange, #violet, #green, #blue, #yellow];
+			}
+			
+			chart "drunkard" type: pie position: {0, 0.6, 0.1} size: {0.3,0.3} {
+				datalist ["Dancer", "Drunkard", "Hippie", "Druggie", "Newbie"] value: drunkard_talked_to
+					color: [#orange, #violet, #green, #blue, #yellow];
+			}
+			
+			chart "hippie" type: pie position: {0.35, 0.3, 0.1} size: {0.3,0.3} {
+				datalist ["Dancer", "Drunkard", "Hippie", "Druggie", "Newbie"] value: hippie_talked_to
+					color: [#orange, #violet, #green, #blue, #yellow];
+			}
+			
+			chart "druggie" type: pie position: {0.7, 0.1, 0.1} size: {0.3,0.3} {
+				datalist ["Dancer", "Drunkard", "Hippie", "Druggie", "Newbie"] value: druggie_talked_to
+					color: [#orange, #violet, #green, #blue, #yellow];
+			}
+			
+			chart "newbie" type: pie position: {0.7, 0.6, 0.1} size: {0.3,0.3} {
+				datalist ["Dancer", "Drunkard", "Hippie", "Druggie", "Newbie"] value: newbie_talked_to
+					color: [#orange, #violet, #green, #blue, #yellow];
 			}
 		}
 		
