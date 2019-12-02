@@ -22,8 +22,8 @@ global {
 	int med_max <- 59;
 	int high_min <- 60;
 	int high_max <- 100;
-	int happy_change_min <- 1;
-	int happy_change_max <- 3;
+	int attr_change_min <- 1;
+	int attr_change_max <- 3;
 	
 	// stage variables
 	list<string> music_genres <- ["country", "electro", "blues"];
@@ -116,6 +116,7 @@ species Guest skills: [fipa, moving] {
 	rgb guest_color;
 	Building target;
 	string genre <- music_genres[rnd(length(music_genres)-1)];
+	Guest talking_to;
 	
 	// wander when nothing to do
 	reflex wander {
@@ -167,12 +168,62 @@ species Guest skills: [fipa, moving] {
 		}
 	}
 	
+	// Once guest's are at one specific building they will chose someone to talk to,
+	// there will be a cooling timer to start another conversation so they don't speak,
+	// to the previous guest
+	reflex choose_person_to_talk when: self.target != nil 
+								 and self.arrived 
+								 and !empty(target.crowd) 
+								 and int(time) mod rnd(2,4) = 0 {
+		Guest guest <- target.crowd first_with (each.talking_to = nil);
+		self.talking_to <- guest;
+		guest.talking_to <- self;
+	}
+	
+	action increase_happiness {
+		self.happiness <- self.happiness + rnd(attr_change_min, attr_change_max);
+	}
+	
+	action decrease_happiness {
+		self.happiness <- self.happiness - rnd(attr_change_min, attr_change_max);
+	}
+	
+	action do_drugs {
+		self.drugs <- self.drugs + rnd(attr_change_min, attr_change_max);
+	}
+	
+	action drink_alchool {
+		self.alchool <- self.alchool + rnd(attr_change_min, attr_change_max);
+	}
+	
+	action dance_together {
+		self.dance <- self.dance + rnd(attr_change_min, attr_change_max);
+	}
 }
 
 // always interested in partying -> #orange
 species Dancer parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+	}
+	
+	reflex talking_to when: talking_to != nil {
+		switch(species(talking_to)) {
+			match Dancer {
+				do increase_happiness;
+				do dance_together;
+			} 
+			match Drunkard {
+				do decrease_happiness;
+				do drink_alchool;
+			}
+			match Druggie {
+				do do_drugs;
+			}
+			match Hippie {
+				do increase_happiness;
+			}
+		}
 	}
 }
 
@@ -181,12 +232,56 @@ species Drunkard parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
 	}
+	
+	reflex talking_to when: talking_to != nil {
+		switch(species(talking_to)) {
+			match Dancer {
+				do increase_happiness;
+				do dance_together;
+			} 
+			match Drunkard {
+				do decrease_happiness;
+				self.alchool <- self.alchool - rnd(attr_change_min, attr_change_max); 
+				write "xxxxxxxxxxxx Fight on " + target.name + " with " + talking_to.name + " xxxxxxxxxxx";
+			}
+			match Druggie {
+				do increase_happiness;
+				do do_drugs;
+			}
+			match Hippie {
+				do increase_happiness;
+			}
+			match Newbie {
+				do increase_happiness;
+			}
+		}
+	}
 }
 
 // always interested in alternative life style -> #green
 species Hippie parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+	}
+	
+	reflex talking_to when: talking_to != nil {
+		switch(species(talking_to)) {
+			match Dancer {
+				do increase_happiness;
+				do dance_together;
+			} 
+			match Drunkard {
+				do decrease_happiness;
+				do drink_alchool;
+			}
+			match Druggie {
+				do increase_happiness;
+				do do_drugs;
+			}
+			match Hippie {
+				do increase_happiness;
+			}
+		}
 	}
 }
 
@@ -195,12 +290,65 @@ species Druggie parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
 	}
+	
+	reflex talking_to when: talking_to != nil {
+		switch(species(talking_to)) {
+			match Dancer {
+				do dance_together;
+			} 
+			match Drunkard {
+				do decrease_happiness;
+				do drink_alchool;
+			}
+			match Druggie {
+				do increase_happiness;
+				do do_drugs;
+			}
+			match Hippie {
+				do increase_happiness;
+				do do_drugs;
+			}
+			match Newbie {
+				do do_drugs;
+			}
+		}
+	}
 }
 
 // interested in trying various things -> #yellow
 species Newbie parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+	}
+	
+	reflex talking_to when: talking_to != nil {
+		switch(species(talking_to)) {
+			match Newbie {
+				self.happiness <- self.happiness - rnd(attr_change_min, attr_change_max);
+			} 
+			match Drunkard {
+				do increase_happiness;
+				do copy_attributes;
+			}
+			match Druggie {
+				do increase_happiness;
+				do copy_attributes;
+			}
+			match Hippie {
+				do increase_happiness;
+				do copy_attributes;
+			}
+			match Dancer {
+				do increase_happiness;
+				do copy_attributes;
+			}
+		}
+	}
+	
+	action copy_attributes {
+		self.drugs <- talking_to.drugs;
+		self.alchool <- talking_to.alchool;
+		self.dance <- talking_to.dance;
 	}
 }
 
