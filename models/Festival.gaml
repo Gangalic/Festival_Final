@@ -30,6 +30,11 @@ global {
 	int show_duration_min <- 300;
 	int show_duration_max <- 500;
 	
+	float dancer_avg_hap;
+	float drunkard_avg_hap;
+	float hippie_avg_hap;
+	float druggie_avg_hap;
+	float newbie_avg_hap;
 	
 	init {
 		// generating 4 bars, one in each corner of the festival
@@ -84,6 +89,14 @@ global {
 		create Stage number: nb_stages {
 			self.location <- {rnd(25,75), rnd(25,75)};
 		}
+	}
+	
+	reflex update_avg_happiness {
+		dancer_avg_hap <- (Dancer sum_of each.happiness) / length(Dancer);
+	 	drunkard_avg_hap <- (Drunkard sum_of each.happiness) / length(Drunkard);
+		hippie_avg_hap <- (Hippie sum_of each.happiness) / length(Hippie);
+		druggie_avg_hap <- (Druggie sum_of each.happiness) / length(Druggie);
+		newbie_avg_hap <- (Newbie sum_of each.happiness) / length(Newbie);
 	}
 	
 }
@@ -279,6 +292,16 @@ experiment start_festival  type: gui {
 			species Druggie;
 			species Hippie;
 			species Newbie;
+		}
+		
+		display chart_display type: opengl {
+			chart "Happinness by guest type" type:series{
+				data "Dancer" value:  dancer_avg_hap color: #orange;
+				data "Drunkard" value:  drunkard_avg_hap color: #violet;
+				data "Hippie" value:  hippie_avg_hap color: #green;
+				data "Druggie" value:  druggie_avg_hap color: #blue;
+				data "Newbie" value:  newbie_avg_hap color: #yellow;
+			}
 		}
 	}
 }
