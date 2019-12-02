@@ -1,8 +1,7 @@
 /***
-* Name: NewModel
-* Author: Catalin
-* Description: 
-* Tags: Tag1, Tag2, TagN
+* Name: Festival 
+* Author: Catalin, Guilherme
+* Description: A full festival where guests interact among each others and gain new attributes
 ***/
 
 model NewModel
@@ -22,8 +21,8 @@ global {
 	int med_max <- 59;
 	int high_min <- 60;
 	int high_max <- 100;
-	int happy_change_min <- 1;
-	int happy_change_max <- 3;
+	int attr_change_min <- 1;
+	int attr_change_max <- 3;
 	
 	// stage variables
 	list<string> music_genres <- ["country", "electro", "blues"];
@@ -133,13 +132,13 @@ species Guest skills: [fipa, moving] {
 				if (request.contents[2] = self.genre){
 					self.target <- request.sender;
 					self.target.crowd <+ self;
-					write "Guest " + self.name + " is going to stage " + self.target.name;
+					write "Guest " + self.name + " [" +alchool+","+drugs+","+dance+"]" + " is going to stage " + self.target.name;
 				} else {
 					int random_number <- rnd(100);
 					if (random_number < 70){
 						// go to a random bar with a chance of 70%
 						self.target <- list(Bar)[rnd(length(list(Bar))-1)];
-						write "Guest " + self.name + " is going to bar " + self.target.name;
+						write "Guest " + self.name + " [" +alchool+","+drugs+","+dance+"]" + " is going to bar " + self.target.name;
 					} else {
 						// otherwise just wander around
 						self.target <- nil;
@@ -156,7 +155,7 @@ species Guest skills: [fipa, moving] {
 		self.arrived <- false;
 	}
 	
-	// go to building
+	// go to building when the Guest is not yet arrived there but has it as a target
 	reflex go_to_building when: self.target != nil {
 		if(location distance_to(self.target) > (self.target.build_size + 2)) {
 			do goto target:{self.target.location.x + 2, self.target.location.y + 2};	
@@ -164,15 +163,25 @@ species Guest skills: [fipa, moving] {
 			// start the staying time
 			self.start_stay <- int(time);
 			self.arrived <- true;
+			if (species(self.target) = Stage){
+				// if it got on the stage the dancing appetite decreases
+				self.dance <- self.dance - 2*rnd(attr_change_min, attr_change_max);
+			} else if (species(self.target) = Bar){
+				// if it got at the bar the alchool lvl increases
+				self.alchool <- self.alchool + 2*rnd(attr_change_min, attr_change_max);
+			}
 		}
 	}
 	
+	// 
 }
 
 // always interested in partying -> #orange
 species Dancer parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+		draw copy_between(self.name, 6, length(self.name)) color: #black font: font('Helvetica', 10, #bold) 
+			at: self.location+{0,0,self.guest_size*2.2};
 	}
 }
 
@@ -180,6 +189,8 @@ species Dancer parent: Guest {
 species Drunkard parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+		draw copy_between(self.name, 8, length(self.name)) color: #black font: font('Helvetica', 10, #bold) 
+			at: self.location+{0,0,self.guest_size*2.2};
 	}
 }
 
@@ -187,6 +198,8 @@ species Drunkard parent: Guest {
 species Hippie parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+		draw copy_between(self.name, 6, length(self.name)) color: #black font: font('Helvetica', 10, #bold) 
+			at: self.location+{0,0,self.guest_size*2.2};
 	}
 }
 
@@ -194,6 +207,8 @@ species Hippie parent: Guest {
 species Druggie parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+		draw copy_between(self.name, 7, length(self.name)) color: #black font: font('Helvetica', 10, #bold) 
+			at: self.location+{0,0,self.guest_size*2.2};
 	}
 }
 
@@ -201,6 +216,8 @@ species Druggie parent: Guest {
 species Newbie parent: Guest {
 	aspect default {
 		draw sphere(guest_size) color: self.guest_color;
+		draw copy_between(self.name, 6, length(self.name)) color: #black font: font('Helvetica', 10, #bold) 
+			at: self.location+{0,0,self.guest_size*2.2};
 	}
 }
 
@@ -228,6 +245,7 @@ species Stage parent: Building {
 	aspect default {
 		draw circle(self.stage_size) color: #gray at: self.location;
 		draw cone3D(build_size/2, self.stage_size) color: rnd_color(255) at: self.location;
+		draw at(self.name,5) at: self.location+{0,0,self.stage_size*1.2} color: #black font: font('Helvetica', 15, #bold);
 	}
 	
 	//When the show is over, remove stage from the stages list and remove stage util from the guests and reset them 
@@ -276,13 +294,23 @@ species Bar parent: Building {
 		draw square(build_size*2) color: #cyan at: self.location+{build_size,0};
 		draw cube(build_size) color: #blue at: self.location-{build_size*0.5,0};
 		draw cube(build_size) color: #blue at: self.location+{build_size*0.5,0};
-		
+		draw at(self.name,3) at: self.location+{0,0,build_size*1.2} color: #black font: font('Helvetica', 15, #bold);
 	}
 }
 
 experiment start_festival  type: gui {
 	output
 	{
+		display chart_display type: opengl {
+			chart "Happinness by guest type" type:series{
+				data "Dancer" value:  dancer_avg_hap color: #orange;
+				data "Drunkard" value:  drunkard_avg_hap color: #violet;
+				data "Hippie" value:  hippie_avg_hap color: #green;
+				data "Druggie" value:  druggie_avg_hap color: #blue;
+				data "Newbie" value:  newbie_avg_hap color: #yellow;
+			}
+		}
+		
 		display main_display type: opengl
 		{
 			species Stage;
@@ -292,16 +320,6 @@ experiment start_festival  type: gui {
 			species Druggie;
 			species Hippie;
 			species Newbie;
-		}
-		
-		display chart_display type: opengl {
-			chart "Happinness by guest type" type:series{
-				data "Dancer" value:  dancer_avg_hap color: #orange;
-				data "Drunkard" value:  drunkard_avg_hap color: #violet;
-				data "Hippie" value:  hippie_avg_hap color: #green;
-				data "Druggie" value:  druggie_avg_hap color: #blue;
-				data "Newbie" value:  newbie_avg_hap color: #yellow;
-			}
 		}
 	}
 }
